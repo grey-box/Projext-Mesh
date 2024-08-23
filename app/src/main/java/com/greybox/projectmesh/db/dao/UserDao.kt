@@ -19,7 +19,7 @@ interface UserDao {
     @Query("SELECT * FROM user WHERE uuid = :uuid")
     fun getID(uuid: String): User
 
-    @Query("SELECT * FROM user")
+    @Query("SELECT * from user")
     fun getAllFlow(): Flow<List<User>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
