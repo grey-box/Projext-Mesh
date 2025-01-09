@@ -44,6 +44,11 @@
     <string name="save_to_folder">Save to folder</string>
     <string name="home">Home</string>
     <string name="send">Send</string>
+    <string name="band">Band</string>
+    <string name="hotspot_type">Hotspot Type</string>
+    <string name="search_nearby_devices">Search Nearby Devices</string>
+    <string name="searching">Searching</string>
+    <string name="cancel">Cancel</string>
 
 
 </resources>

@@ -1,13 +1,12 @@
 package com.greybox.projectmesh.viewModel
 
 import android.util.Log
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.greybox.projectmesh.model.HomeScreenModel
 import com.ustadmobile.meshrabiya.vnet.AndroidVirtualNode
+import com.ustadmobile.meshrabiya.vnet.wifi.ConnectBand
+import com.ustadmobile.meshrabiya.vnet.wifi.HotspotType
 import com.ustadmobile.meshrabiya.vnet.wifi.WifiConnectConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,12 +44,36 @@ class HomeScreenViewModel(di: DI): ViewModel(){
                 }
             }
         }
+        if (node.meshrabiyaWifiManager.is5GhzSupported){
+            _uiState.update { prev ->
+                prev.copy(
+                    bandMenu = listOf(ConnectBand.BAND_5GHZ, ConnectBand.BAND_2GHZ),
+                    band = ConnectBand.BAND_5GHZ
+                )
+            }
+        }
+    }
+
+    fun onConnectBandChanged(band: ConnectBand) {
+        _uiState.update { prev ->
+            prev.copy(
+                band = band
+            )
+        }
+    }
+
+    fun onSetHotspotTypeToCreate(hotspotType: HotspotType) {
+        _uiState.update { prev ->
+            prev.copy(
+                hotspotTypeToCreate = hotspotType
+            )
+        }
     }
 
     // This function is responsible for enabling or disabling the hotspot
-    fun onSetIncomingConnectionsEnabled(enable: Boolean){
+    fun onSetIncomingConnectionsEnabled(enable: Boolean) {
         viewModelScope.launch {
-            val response = node.setWifiHotspotEnabled(
+            val result = node.setWifiHotspotEnabled(
                 enabled = enable,
                 preferredBand = _uiState.value.band,
                 hotspotType = _uiState.value.hotspotTypeToCreate,
@@ -61,20 +84,18 @@ class HomeScreenViewModel(di: DI): ViewModel(){
     // This function is responsible for connecting to a wifi network as a station (Client Mode)
     fun onConnectWifi(
         hotSpotConfig: WifiConnectConfig
-    ){
+    ) {
         viewModelScope.launch {
-            try{
+            try {
                 node.connectAsStation(hotSpotConfig)
-            }
-            catch (e: Exception){
+            } catch (e: Exception) {
                 Log.e("HomeScreenViewModel", "onConnectWifi: ${e.message}")
             }
-
         }
     }
 
     // disconnect the wifi station
-    fun onClickDisconnectStation(){
+    fun onClickDisconnectStation() {
         viewModelScope.launch {
             node.disconnectWifiStation()
         }

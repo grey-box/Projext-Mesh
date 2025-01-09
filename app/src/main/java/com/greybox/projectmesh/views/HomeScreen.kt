@@ -1,13 +1,8 @@
 package com.greybox.projectmesh.views
 
-import android.annotation.SuppressLint
-import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.os.PowerManager
-import android.provider.Settings
+import android.content.pm.PackageManager
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -34,6 +29,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -61,7 +57,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.zxing.BarcodeFormat
 import com.greybox.projectmesh.NEARBY_WIFI_PERMISSION_NAME
 import com.greybox.projectmesh.R
@@ -82,11 +77,15 @@ import com.ustadmobile.meshrabiya.vnet.wifi.state.WifiStationState
 import org.kodein.di.compose.localDI
 import org.kodein.di.direct
 import org.kodein.di.instance
+import com.ustadmobile.meshrabiya.vnet.wifi.ConnectBand
+import com.ustadmobile.meshrabiya.vnet.wifi.HotspotType
+import android.net.wifi.WifiManager
 
 @Composable
 // We customize the viewModel since we need to inject dependencies
-fun HomeScreen(viewModel: HomeScreenViewModel = viewModel
-    (
+fun HomeScreen(
+    onSwitchToSearchScreen: () -> Unit = {},
+    viewModel: HomeScreenViewModel = viewModel(
     factory = ViewModelFactory(
         di = localDI(),
         owner = LocalSavedStateRegistryOwner.current,
@@ -112,15 +111,26 @@ fun HomeScreen(viewModel: HomeScreenViewModel = viewModel
         uiState = uiState,
         node = node as AndroidVirtualNode,
         onSetIncomingConnectionsEnabled = {enabled ->
-            if(enabled && !context.hasNearbyWifiDevicesOrLocationPermission()){
-                requestNearbyWifiPermissionLauncher.launch(NEARBY_WIFI_PERMISSION_NAME)
+            if (enabled) {
+                if (!context.hasNearbyWifiDevicesOrLocationPermission()) {
+                    requestNearbyWifiPermissionLauncher.launch(NEARBY_WIFI_PERMISSION_NAME)
+                    return@StartHomeScreen
+                }
+                if (uiState.hotspotTypeToCreate == HotspotType.WIFIDIRECT_GROUP) {
+                    val wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+                    if (!wifiManager.isWifiEnabled) {
+                        Toast.makeText(context, "Please Turn on Wifi", Toast.LENGTH_SHORT).show()
+                        return@StartHomeScreen
+                    }
+                }
             }
-            else{
-                viewModel.onSetIncomingConnectionsEnabled(enabled)
-            }
+            viewModel.onSetIncomingConnectionsEnabled(enabled)
         },
         onClickDisconnectWifiStation = viewModel::onClickDisconnectStation,
-        deviceName = deviceName
+        deviceName = deviceName,
+        onSwitchToSearchScreen = onSwitchToSearchScreen,
+        onSetBand = viewModel::onConnectBandChanged,
+        onSetHotspotTypeToCreate = viewModel::onSetHotspotTypeToCreate
     )
 }
 
@@ -132,7 +142,10 @@ fun StartHomeScreen(
     onSetIncomingConnectionsEnabled: (Boolean) -> Unit = { },
     onClickDisconnectWifiStation: () -> Unit = { },
     viewModel: HomeScreenViewModel = viewModel(),
-    deviceName: String?
+    deviceName: String?,
+    onSwitchToSearchScreen: () -> Unit = {},
+    onSetBand: (ConnectBand) -> Unit = { },
+    onSetHotspotTypeToCreate: (HotspotType) -> Unit = { },
 ){
     val di = localDI()
     val barcodeEncoder = remember { BarcodeEncoder() }
@@ -178,22 +191,80 @@ fun StartHomeScreen(
     }
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         Column {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             // Display the device name and IP
             LongPressCopyableText(
                 context = context,
                 text = "",
                 textCopyable = deviceName.toString(),
-                textSize = 15
+                textSize = 15,
+                padding = 6
             )
             Spacer(modifier = Modifier.height(6.dp))
             LongPressCopyableText(
                 context = context,
                 text = stringResource(id = R.string.ip_address) + ": ",
                 textCopyable = uiState.localAddress.addressToDotNotation(),
-                textSize = 15
+                textSize = 15,
+                padding = 6
             )
+
             Spacer(modifier = Modifier.height(12.dp))
+
+            if(uiState.connectBandVisible) {
+                Column {
+                    Text(
+                        modifier = Modifier.padding(horizontal = 6.dp),
+                        text = stringResource(id = R.string.band),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp)
+                    ) {
+                        uiState.bandMenu.forEach { band ->
+                            FilterChip(
+                                selected = uiState.band == band,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                onClick = {
+                                    onSetBand(band)
+                                },
+                                label = {
+                                    Text(band.toString())
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            // Function to check if Wi-Fi Direct is supported
+            fun isWifiDirectSupported(context: Context): Boolean {
+                return context.packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT)
+            }
+            if(!uiState.incomingConnectionsEnabled) {
+                val wifiDirectSupported = isWifiDirectSupported(context)
+                Column {
+                    Text(
+                        modifier = Modifier.padding(horizontal = 6.dp),
+                        text = stringResource(id = R.string.hotspot_type),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp)
+                    ) {
+                        uiState.hotspotTypeMenu.forEach { hotspotType ->
+                            val isDisabled = (hotspotType == HotspotType.WIFIDIRECT_GROUP && !wifiDirectSupported)
+                            FilterChip(
+                                enabled = !isDisabled,
+                                selected = hotspotType == uiState.hotspotTypeToCreate,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                onClick = { onSetHotspotTypeToCreate(hotspotType) },
+                                label = { Text(hotspotType.toString()) }
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
             // Display the "Start Hotspot" button
             val stationState = uiState.wifiState?.wifiStationState
             if (!uiState.wifiConnectionsEnabled) {
@@ -247,7 +318,6 @@ fun StartHomeScreen(
                         putExtra(Intent.EXTRA_TEXT, connectUri)
                         type = "text/plain"
                     }
-
                     val shareIntent = Intent.createChooser(sendIntent, null)
                     context.startActivity(shareIntent)
                 }, modifier = Modifier.padding(4.dp), enabled = true) {
@@ -261,7 +331,7 @@ fun StartHomeScreen(
                 if (stationState.status == WifiStationState.Status.INACTIVE){
                     Column (modifier = Modifier.fillMaxWidth()){
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(text = stringResource(id = R.string.wifi_station_connection), style = TextStyle(fontSize = 16.sp))
+                        Text(modifier = Modifier.padding(6.dp), text = stringResource(id = R.string.wifi_station_connection), style = TextStyle(fontSize = 16.sp))
                         Spacer(modifier = Modifier.height(12.dp))
                         Row (modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.Center)
@@ -280,7 +350,7 @@ fun StartHomeScreen(
                             )
                         }
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(text = stringResource(id = R.string.instruction))
+                        Text(modifier = Modifier.padding(6.dp), text = stringResource(id = R.string.instruction))
                         Spacer(modifier = Modifier.height(4.dp))
                         TextField(
                             value = userEnteredConnectUri,
@@ -346,7 +416,7 @@ fun StartHomeScreen(
             Spacer(modifier = Modifier.height(10.dp))
             // add a Hotspot status indicator
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = stringResource(id = R.string.hotspot_status) + ": " + 
+                Text(modifier = Modifier.padding(6.dp), text = stringResource(id = R.string.hotspot_status) + ": " +
                         if (uiState.hotspotStatus) stringResource(
                             id = R.string.hotspot_status_online
                         ) else stringResource(id = R.string.hotspot_status_offline))
@@ -360,13 +430,23 @@ fun StartHomeScreen(
                         )
                 )
             }
+            Spacer(modifier = Modifier.height(10.dp))
+            WhiteButton(onClick = { onSwitchToSearchScreen() },
+                text = stringResource(id = R.string.search_nearby_devices),
+                modifier = Modifier.padding(4.dp),
+                enabled = if(!uiState.hotspotStatus) true else context.hasStaApConcurrency()
+            )
         }
     }
 }
 
 // Enable users to copy text by holding down the text for a long press
 @Composable
-fun LongPressCopyableText(context: Context, text: String, textCopyable: String, textSize: Int){
+fun LongPressCopyableText(context: Context,
+                          text: String,
+                          textCopyable: String,
+                          textSize: Int,
+                          padding: Int = 0){
     val clipboardManager = LocalClipboardManager.current
     BasicText(
         text = text + textCopyable,
@@ -379,7 +459,7 @@ fun LongPressCopyableText(context: Context, text: String, textCopyable: String, 
                     clipboardManager.setText(AnnotatedString(textCopyable))
                     Toast.makeText(context, "Text copied to clipboard!", Toast.LENGTH_SHORT).show()
                 })
-        }
+        }.padding(padding.dp)
     )
 }
 

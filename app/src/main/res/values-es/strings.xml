@@ -18,7 +18,6 @@
     <string name="from">De</string>
     <string name="status">Estado</string>
     <string name="completed">COMPLETADO</string>
-
     <string name="settings">Configuración</string>
     <string name="general">General</string>
     <string name="language">Idioma</string>
@@ -30,7 +29,11 @@
     <string name="receive">Recibir</string>
     <string name="auto_finish">Finalización Automática</string>
     <string name="save_to_folder">Guardar en carpeta</string>
-
     <string name="home">Inicio</string>
     <string name="send">Enviar</string>
+    <string name="band">Banda</string>
+    <string name="hotspot_type">Tipo de punto de acceso</string>
+    <string name="search_nearby_devices">Buscar dispositivos cercanos</string>
+    <string name="searching">Buscando</string>
+    <string name="cancel">Cancelar</string>
 </resources>

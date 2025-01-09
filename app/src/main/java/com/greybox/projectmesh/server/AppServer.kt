@@ -270,7 +270,7 @@ class AppServer(
 
             // Extract the values for "id", "filename", "size", and "from" from the query parameters
             val id = searchParams["id"]
-            val filename = searchParams["filename"]
+            val filename = URLDecoder.decode(searchParams["filename"], "UTF-8")
             // if size is missing or invalid, then defaults to -1
             val size = searchParams["size"]?.toInt() ?: -1
             val fromAddr = searchParams["from"]

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -53,6 +54,7 @@ import org.kodein.di.compose.localDI
 import org.kodein.di.DI
 import org.kodein.di.instance
 import java.io.File
+import java.net.URLDecoder
 
 @Composable
 fun ReceiveScreen(
@@ -162,7 +164,9 @@ fun HandleIncomingTransfers(
                         val fromHostAddress = transfer.fromHost.hostAddress
                         Text(stringResource(id = R.string.from) + " ${transfer.deviceName}(${fromHostAddress})")
                         Text(stringResource(id = R.string.status) + ": ${transfer.status}")
-                        Text("${autoConvertByte(transfer.transferred)} / ${autoConvertByte(transfer.size)}")
+                        Text("${autoConvertByte(transfer.transferred)} / " +
+                                "${autoConvertByte(transfer.size)}@${autoConvertMS(transfer.transferTime)}"
+                        )
                         if(transfer.status == AppServer.Status.PENDING){
                             Row{
                                 IconButton(onClick = {onAccept(transfer)},
@@ -203,6 +207,7 @@ fun HandleIncomingTransfers(
                     }
                 }
             )
+            HorizontalDivider()
         }
     }
 }

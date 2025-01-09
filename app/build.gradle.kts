@@ -103,6 +103,7 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.2.1")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("com.google.accompanist:accompanist-permissions:0.31.1-alpha")
+    implementation("com.airbnb.android:lottie-compose:6.0.0")
     // Core Kodein DI dependency
 
     // For Android-specific features

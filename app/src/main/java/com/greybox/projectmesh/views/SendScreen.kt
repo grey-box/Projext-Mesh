@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -99,6 +100,7 @@ fun DisplayAllPendingTransfers(
                     }
                 }
             )
+            HorizontalDivider()
         }
     }
 }
@@ -113,4 +115,16 @@ fun autoConvertByte(byteSize: Int): String{
         return "${kb}KB"
     }
     return "${mb}MB"
+}
+
+fun autoConvertMS(ms: Int): String {
+    val second = Math.round(ms / 1000.0 * 100) / 100.0
+    val minute = Math.round((second / 60.0) * 100) / 100.0
+    return if (second >= 1 && minute < 1) {
+        "${second}s"
+    } else if (minute >= 1) {
+        "${minute}m"
+    } else {
+        "${ms}ms"
+    }
 }
